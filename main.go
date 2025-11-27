@@ -98,8 +98,21 @@ func (s ParcelService) Delete(number int) error {
 
 func main() {
 	// настройте подключение к БД
+	db, err := sql.Open("sqlite", "tracker.db")
+	if err != nil {
+		fmt.Printf("Ошибка подключения к БД: %v\n", err)
+		return
+	}
+	defer db.Close()
 
-	store := // создайте объект ParcelStore функцией NewParcelStore
+	// проверяем соединение
+	err = db.Ping()
+	if err != nil {
+		fmt.Printf("Ошибка проверки соединения: %v\n", err)
+		return
+	}
+
+	store := NewParcelStore(db) // создайте объект ParcelStore функцией NewParcelStore
 	service := NewParcelService(store)
 
 	// регистрация посылки
@@ -136,8 +149,12 @@ func main() {
 	// попытка удаления отправленной посылки
 	err = service.Delete(p.Number)
 	if err != nil {
-		fmt.Println(err)
-		return
+		if err.Error() == "cannot delete parcel: parcel is not in registered status" {
+			fmt.Println("Посылка не удалена: нельзя удалить отправленную посылку")
+		} else {
+			fmt.Println(err)
+			return
+		}
 	}
 
 	// вывод посылок клиента
