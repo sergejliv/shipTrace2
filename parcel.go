@@ -53,9 +53,9 @@ func (s ParcelStore) Get(number int) (Parcel, error) {
 	err := row.Scan(&p.Number, &p.Client, &p.Status, &p.Address, &p.CreatedAt)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return p, sql.ErrNoRows
+			return Parcel{}, sql.ErrNoRows
 		}
-		return p, err
+		return Parcel{}, err
 	}
 
 	return p, nil
@@ -102,44 +102,46 @@ func (s ParcelStore) SetStatus(number int, status string) error {
 }
 
 func (s ParcelStore) SetAddress(number int, address string) error {
-	// реализуйте обновление адреса в таблице parcel
-	// менять адрес можно только если значение статуса registered
-
-	// Сначала проверяем статус посылки
-	parcel, err := s.Get(number)
+	result, err := s.db.Exec(
+		"UPDATE parcel SET address = :address WHERE number = :number AND status = :status",
+		sql.Named("address", address),
+		sql.Named("number", number),
+		sql.Named("status", ParcelStatusRegistered),
+	)
 	if err != nil {
 		return err
 	}
 
-	if parcel.Status != ParcelStatusRegistered {
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+
+	if rowsAffected == 0 {
 		return ErrCantChangeAddress
 	}
 
-	_, err = s.db.Exec(
-		"UPDATE parcel SET address = :address WHERE number = :number",
-		sql.Named("address", address),
-		sql.Named("number", number),
-	)
-	return err
+	return nil
 }
 
 func (s ParcelStore) Delete(number int) error {
-	// реализуйте удаление строки из таблицы parcel
-	// удалять строку можно только если значение статуса registered
-
-	// Сначала проверяем статус посылки
-	parcel, err := s.Get(number)
+	result, err := s.db.Exec(
+		"DELETE FROM parcel WHERE number = :number AND status = :status",
+		sql.Named("number", number),
+		sql.Named("status", ParcelStatusRegistered),
+	)
 	if err != nil {
 		return err
 	}
 
-	if parcel.Status != ParcelStatusRegistered {
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+
+	if rowsAffected == 0 {
 		return ErrCantDelete
 	}
 
-	_, err = s.db.Exec(
-		"DELETE FROM parcel WHERE number = :number",
-		sql.Named("number", number),
-	)
-	return err
+	return nil
 }
